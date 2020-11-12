@@ -4,9 +4,6 @@ networks:
   isidore_network:
     external:
       name: nginxproxynetwork
-  isidore:
-    external:
-      name: isidore_default
 
 services:
   elastic:
@@ -31,11 +28,12 @@ services:
       - "5432:5432"
     volumes:
     - /data/docker/volumes/isidore-postgres/_data:/var/lib/postgresql/data
+    - /home/robz:/home
     environment:
       POSTGRES_USER: isidore
       POSTGRES_PASSWORD: rambo
     networks:
-      - isidore
+      - isidore_network
 
   isidore:
     build:
@@ -54,4 +52,3 @@ services:
       - 8086:80
     networks:
       - isidore_network
-      - isidore
