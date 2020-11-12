@@ -7,7 +7,7 @@ COPY --chown=www-data:www-data  ./src/service/ /var/www/html/isidore_service/
 
 RUN apt-get update \
  && apt-get install -y libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev sudo unzip \
- && docker-php-ext-install pdo_pgsql \
+ && docker-php-ext-install pgsql \
  && docker-php-ext-install mysqli \
  && docker-php-ext-install mbstring \
  && docker-php-ext-install gd \
