@@ -51,8 +51,6 @@ services:
     volumes:
       - /data/docker/volumes/isidore-webroot/_data:/var/www/html/
       - /home/robz:/home
-    ports:
-      - 8080:80
     networks:
       - isidore_network
       - isidore
