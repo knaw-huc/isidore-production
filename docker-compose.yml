@@ -1,0 +1,64 @@
+version: '2'
+
+networks:
+  sont_network:
+    external:
+      name: nginxproxynetwork
+  soundtoll:
+    external:
+      name: soundtoll_default
+
+services:
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
+    container_name: soundtoll_es
+    restart: always
+    environment:
+      - discovery.type=single-node
+    expose:
+      - 9200
+    networks:
+      - sont_network
+    volumes:
+      - /data/docker/volumes/sont_data/_data:/usr/share/elasticsearch/data
+      - /home/robz:/home
+
+  sont_mysql:
+    image: mysql:5.7
+    container_name: soundtoll_mysql
+    command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci --init-connect='SET NAMES UTF8;' --innodb-flush-log-at-trx-commit=0
+    restart: always
+    expose:
+      - 3306
+    environment:
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: default_schema
+      VIRTUAL_PORT: 3306
+    volumes:
+      - /data/docker/volumes/sont_db/_data/mysql:/var/lib/mysql
+      - /home/robz:/home
+    ports:
+      - 3306:3306
+    networks:
+      - soundtoll
+
+  sont:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: soundtoll_application
+    restart: always
+    environment:
+      - VIRTUAL_HOST=soundtoll.sd.di.huc.knaw.nl
+    links:
+      - elastic
+      - sont_mysql
+    volumes:
+      - /home/robz:/home
+    ports:
+      - 8080:80
+    networks:
+      - sont_network
+      - soundtoll

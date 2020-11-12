@@ -1,0 +1,51 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "terms": {
+            "plaats_regio_klein.raw": [
+              "Italy"
+            ]
+          }
+        },
+        {
+          "nested": {
+            "path": "lading",
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "terms": {
+                      "lading.soort.raw": [
+                        "Byg",
+                        "Havre"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "size": 20,
+  "from": 0,
+  "_source": [
+    "id_doorvaart",
+    "schipper_achternaam",
+    "schipper_naam",
+    "jaar",
+    "schipper_plaatsnaam",
+    "lading.soort"
+  ],
+  "sort": [
+    {
+      "schipper_achternaam.raw": {
+        "order": "asc"
+      }
+    }
+  ]
+}

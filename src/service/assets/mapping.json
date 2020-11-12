@@ -1,0 +1,46 @@
+{"mappings": {"properties": {
+    "id_doorvaart": {"type": "integer"},
+    "jaar": {"type": "integer"},
+    "schipper_achternaam": {"type": "keyword"},
+    "schipper_naam": {"type": "keyword"},
+    "schipper_plaatsnaam": {"type": "keyword"},
+    "plaats_standaard": {"type": "keyword"},
+    "plaats_regio_groot": {"type": "keyword"},
+    "plaats_regio_klein": {"type": "keyword"},
+    "van": {
+        "type": "nested",
+        "properties": {"plaats": {"type": "keyword"}}
+    },
+    "naar": {
+        "type": "nested",
+        "properties": {"plaats": {"type": "keyword"}}
+    },
+    "van_standaard": {
+        "type": "nested",
+        "properties": {"plaats": {"type": "keyword"}}
+    },
+    "naar_standaard": {
+        "type": "nested",
+        "properties": {"plaats": {"type": "keyword"}}
+    },
+    "van_regio_groot": {
+        "type": "nested",
+        "properties": {"name": {"type": "keyword"}}
+    },
+    "naar_regio_groot": {
+        "type": "nested",
+        "properties": {"name": {"type": "keyword"}}
+    },
+    "van_regio_klein": {
+        "type": "nested",
+        "properties": {"name": {"type": "keyword"}}
+    },
+    "naar_regio_klein": {
+        "type": "nested",
+        "properties": {"name": {"type": "keyword"}}
+    },
+    "lading": {
+        "type": "nested",
+        "properties": {"soort": {"type": "keyword"}}
+    }
+}}}
