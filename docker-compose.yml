@@ -1,64 +1,58 @@
 version: '2'
 
 networks:
-  sont_network:
+  isidore_network:
     external:
       name: nginxproxynetwork
-  soundtoll:
+  isidore:
     external:
-      name: soundtoll_default
+      name: isidore_default
 
 services:
   elastic:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
-    container_name: soundtoll_es
+    container_name: isidore_es
     restart: always
     environment:
       - discovery.type=single-node
     expose:
       - 9200
     networks:
-      - sont_network
+      - isidore_network
     volumes:
-      - /data/docker/volumes/sont_data/_data:/usr/share/elasticsearch/data
+      - /data/docker/volumes/isidore-es/_data:/usr/share/elasticsearch/data
       - /home/robz:/home
 
-  sont_mysql:
-    image: mysql:5.7
-    container_name: soundtoll_mysql
-    command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci --init-connect='SET NAMES UTF8;' --innodb-flush-log-at-trx-commit=0
+  db:
+    image: postgres:12
+    container_name: isidore_postgres
     restart: always
-    expose:
-      - 3306
-    environment:
-      MYSQL_USER: user
-      MYSQL_PASSWORD: user
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: default_schema
-      VIRTUAL_PORT: 3306
-    volumes:
-      - /data/docker/volumes/sont_db/_data/mysql:/var/lib/mysql
-      - /home/robz:/home
     ports:
-      - 3306:3306
+      - "5432:5432"
+    volumes:
+    - /data/docker/volumes/isidore-postgres/_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: isidore
+      POSTGRES_PASSWORD: rambo
     networks:
-      - soundtoll
+      - isidore
 
-  sont:
+  isidore:
     build:
       context: ./
       dockerfile: Dockerfile
-    container_name: soundtoll_application
+    container_name: isidore_application
     restart: always
     environment:
-      - VIRTUAL_HOST=soundtoll.sd.di.huc.knaw.nl
+      - VIRTUAL_HOST=isidore.sd.di.huc.knaw.nl
     links:
       - elastic
-      - sont_mysql
+      - db
     volumes:
+      - /data/docker/volumes/isidore-webroot/_data:/var/www/html/
       - /home/robz:/home
     ports:
       - 8080:80
     networks:
-      - sont_network
-      - soundtoll
+      - isidore_network
+      - isidore
