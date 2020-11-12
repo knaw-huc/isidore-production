@@ -17,7 +17,6 @@ services:
     networks:
       - isidore_network
     volumes:
-      - /data/docker/volumes/isidore-es/_data:/usr/share/elasticsearch/data
       - /home/robz:/home
 
   db:
@@ -27,7 +26,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-    - /data/docker/volumes/isidore-postgres/_data:/var/lib/postgresql/data
     - /home/robz:/home
     environment:
       POSTGRES_USER: isidore
