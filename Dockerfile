@@ -16,7 +16,4 @@ RUN apk update && \
     git curl zip jq postgresql-client
 
 
-RUN apt-get install --no-install-recommends -y libpq-dev \
-     docker-php-ext-install pdo pgsql pdo_pgsql
-
 RUN a2enmod rewrite
