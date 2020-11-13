@@ -6,12 +6,38 @@ COPY --chown=www-data:www-data  ./src/site/static/ /var/www/html/static/
 COPY --chown=www-data:www-data  ./src/service/ /var/www/html/isidore_service/
 
 
-RUN apt-get update \
- && apt-get install -y libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev sudo unzip \
- && apt-get -y install php7.1 libapache2-mod-php7.1 php7.1-gd php7.1-pgsql php7.1-xsl php7.1-curl\
- && docker-php-ext-install mbstring \
- && docker-php-ext-install gd \
- && docker-php-ext-install iconv \
- && docker-php-ext-install mcrypt
-
+ENV APCU_VERSION 5.1.7
+RUN buildDeps=" \
+        libicu-dev \
+        zlib1g-dev \
+        libsqlite3-dev \
+        libpq-dev \
+    " \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        $buildDeps \
+        libicu52 \
+        zlib1g \
+        sqlite3 \
+        git \
+        php5-pgsql \
+    && rm -rf /var/lib/apt/lists/* \
+    && docker-php-ext-install \
+        intl \
+        mbstring \
+        pdo_mysql \
+        pdo_pgsql \
+        pdo \
+        pgsql \
+        curl \
+        pdo_sqlite \
+    && apt-get purge -y --auto-remove $buildDeps
+RUN pecl install \
+        apcu-$APCU_VERSION \
+        xdebug \
+    && docker-php-ext-enable xdebug \
+    && docker-php-ext-enable --ini-name 05-opcache.ini \
+        opcache \
+    && docker-php-ext-enable --ini-name 20-apcu.ini \
+        apcu
 RUN a2enmod rewrite
