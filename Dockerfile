@@ -13,4 +13,7 @@ RUN apt-get update \
  && docker-php-ext-install iconv \
  && docker-php-ext-install mcrypt
 
+RUN apt-get install --no-install-recommends -y libpq-dev
+     docker-php-ext-install pdo pgsql pdo_pgsql 
+
 RUN a2enmod rewrite
