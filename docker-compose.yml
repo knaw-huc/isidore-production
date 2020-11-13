@@ -17,6 +17,7 @@ services:
     networks:
       - isidore_network
     volumes:
+      - /data/docker/volumes/isidore_es/_data:/usr/share/elasticsearch/data
       - /home/robz:/home
 
   db:
@@ -30,6 +31,7 @@ services:
     environment:
       POSTGRES_USER: isidore
       POSTGRES_PASSWORD: rambo
+      POSTGRES_DB: isidore
     networks:
       - isidore_network
 
