@@ -10,7 +10,7 @@ RUN  apt-get update && apt-get install -y \
             libkrb5-dev \
             libpq-dev \
             vim \
-        && docker-php-ext-install pdo_mysql mysqli pdo_pgsql \
+        && docker-php-ext-install pdo_mysql mysqli pdo_pgsql pgsql \
         && apachectl restart
 
 RUN a2enmod rewrite
