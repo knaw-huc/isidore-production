@@ -165,16 +165,16 @@ class db
     {
         $retArray = array();
         if (!is_null($item["url_images_1"]) && strlen($item["url_images_1"]) > 0) {
-            $retArray[] = $item["url_images_1"];
+            $retArray[] = array( "item" => $item["url_images_1"]);
         }
         if (!is_null($item["url_images_2"]) && strlen($item["url_images_2"]) > 0) {
-            $retArray[] = $item["url_images_2"];
+            $retArray[] = array( "item" => $item["url_images_2"]);
         }
         if (!is_null($item["url_images_3"]) && strlen($item["url_images_3"]) > 0) {
-            $retArray[] = $item["url_images_3"];
+            $retArray[] = array( "item" => $item["url_images_3"]);
         }
         if (!is_null($item["url_images_4"]) && strlen($item["url_images_4"]) > 0) {
-            $retArray[] = $item["url_images_4"];
+            $retArray[] = array( "item" => $item["url_images_4"]);
         }
         return $retArray;
     }

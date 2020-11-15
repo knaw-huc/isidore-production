@@ -45,12 +45,13 @@ function elastic($json_struc) {
 
 
 function search($codedStruc) {
-    $json_struc = parse_codedStruc($codedStruc);
-
+    $queryArray = json_decode(base64_decode($codedStruc), true);
+    $json_struc = parse_codedStruc($queryArray);
     $send_back = array();
 
     $result = elastic($json_struc);
     $send_back["amount"] = $result["hits"]["total"]["value"];
+    $send_back["pages"] = ceil($send_back["amount"] / $queryArray["page_length"]);
     $send_back["manuscripts"] = array();
     foreach ($result["hits"]["hits"] as $manuscript) {
         $send_back["manuscripts"][] = $manuscript["_source"];
@@ -58,13 +59,13 @@ function search($codedStruc) {
     send_json($send_back);
 }
 
-function parse_codedStruc($codedStruc) {
-    $queryArray = json_decode(base64_decode($codedStruc), true);
-    $from = ($queryArray["page"] - 1) * PAGE_LENGTH;
+function parse_codedStruc($queryArray) {
+    $page_length = $queryArray["page_length"];
+    $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
         //$json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": 50, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"id.keyword\": {\"order\":\"asc\"}}]}";
-        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": 450, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
         //error_log($json_struc);
     } else {
         $json_struc = buildQuery($queryArray, $from, $sortOrder);

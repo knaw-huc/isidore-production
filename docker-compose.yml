@@ -27,9 +27,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-    - /home/robz:/home
+      - /data/docker/volumes/isidore-postgres/_data:/var/lib/postgresql/data
+      - /home/robz:/home
     environment:
-      POSTGRES_USER: isidore
+      POSTGRES_USER: robzeeman
       POSTGRES_PASSWORD: rambo
       POSTGRES_DB: isidore
     networks:
