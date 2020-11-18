@@ -65,7 +65,7 @@ function parse_codedStruc($queryArray) {
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
         //$json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": 50, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"id.keyword\": {\"order\":\"asc\"}}]}";
-        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
         //error_log($json_struc);
     } else {
         $json_struc = buildQuery($queryArray, $from, $sortOrder);
@@ -100,7 +100,7 @@ function nestedTemplate($fieldArray, $value) {
 }
 
 function queryTemplate($terms, $from, $sortOrder) {
-    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 20, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 20, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
 }
 
 function makeItems($termArray) {
@@ -144,7 +144,7 @@ function get_nested_facets($field, $type, $filter = "") {
     $field_elements = explode(".", $field);
     $path = $field_elements[0];
     $json_struc = "{\"size\": 0,\"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
-    error_log($json_struc);
+    //error_log($json_struc);
     $result = elastic($json_struc);
     send_json(array("buckets" => $result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"]));
 }
