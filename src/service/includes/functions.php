@@ -1,13 +1,15 @@
 <?php
 $db = new db();
 
-function get_dummy() {
+function get_dummy()
+{
     global $db;
 
     send_json($db->dummy());
 }
 
-function detail($id) {
+function detail($id)
+{
     global $db;
 
     $result = $db->getBaseDetails($id);
@@ -18,7 +20,7 @@ function detail($id) {
         $result["image"] = "no_image.jpg";
     }
     if ($result["certainty"] == "no") {
-        $result["place_absolute"] =  $result["place_absolute"] . " (?)";
+        $result["place_absolute"] = $result["place_absolute"] . " (?)";
     }
     if ($result) {
         send_json($result);
@@ -28,8 +30,9 @@ function detail($id) {
 }
 
 
-function elastic($json_struc) {
-    
+function elastic($json_struc)
+{
+
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
 
     $ch = curl_init(ELASTIC_HOST);
@@ -44,11 +47,12 @@ function elastic($json_struc) {
 }
 
 
-function search($codedStruc) {
+function search($codedStruc)
+{
     $queryArray = json_decode(base64_decode($codedStruc), true);
     $json_struc = parse_codedStruc($queryArray);
     $send_back = array();
-
+    error_log($json_struc);
     $result = elastic($json_struc);
     $send_back["amount"] = $result["hits"]["total"]["value"];
     $send_back["pages"] = ceil($send_back["amount"] / $queryArray["page_length"]);
@@ -59,7 +63,8 @@ function search($codedStruc) {
     send_json($send_back);
 }
 
-function parse_codedStruc($queryArray) {
+function parse_codedStruc($queryArray)
+{
     $page_length = $queryArray["page_length"];
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
@@ -70,13 +75,15 @@ function parse_codedStruc($queryArray) {
     } else {
         $json_struc = buildQuery($queryArray, $from, $sortOrder);
     }
+    error_log($json_struc);
     return $json_struc;
 }
 
-function buildQuery($queryArray, $from, $sortOrder) {
+function buildQuery($queryArray, $from, $sortOrder)
+{
     $terms = array();
 
-    foreach($queryArray["searchvalues"] as $item) {
+    foreach ($queryArray["searchvalues"] as $item) {
         if (strpos($item["field"], '.')) {
             $fieldArray = explode(".", $item["field"]);
             $terms[] = nestedTemplate($fieldArray, makeItems($item["values"]));
@@ -89,38 +96,129 @@ function buildQuery($queryArray, $from, $sortOrder) {
     return queryTemplate(implode(",", $terms), $from, $sortOrder);
 }
 
-function matchTemplate($term, $value) {
-    return "{\"terms\": {\"$term.raw\": [$value]}}";
+function matchTemplate($term, $value)
+{
+    switch ($term) {
+        case "FREE_TEXT":
+            return "{\"multi_match\": {\"query\": $value}}";
+        case "BOOK":
+            return bookValues($value);
+            break;
+        default:
+            return "{\"terms\": {\"$term.raw\": [$value]}}";
+    }
 }
 
-function nestedTemplate($fieldArray, $value) {
+function nestedTemplate($fieldArray, $value)
+{
     $path = $fieldArray[0];
     $field = implode(".", $fieldArray);
     return "{\"nested\": {\"path\": \"$path\",\"query\": {\"bool\": {\"must\": [{\"terms\": {\"$field.raw\": [$value]}}]}}}}";
 }
 
-function queryTemplate($terms, $from, $sortOrder) {
+function queryTemplate($terms, $from, $sortOrder)
+{
     return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 20, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
 }
 
-function makeItems($termArray) {
+function bookValues($book)
+{
+    $book = str_replace("\"", "", $book);
+    $bookSplit = explode(":", $book);
+    $base = romanToNumeric($bookSplit[0]);
+    $range = explode("-", $bookSplit[1]);
+    $from = $base + $range[0];
+    $to = $base + $range[1];
+    return "{\"range\": {\"books.details.section\": {\"from\": $from, \"to\": $to}}}";
+}
+
+function romanToNumeric($book)
+{
+    switch ($book) {
+        case "I":
+            return 1000;
+            break;
+        case "II":
+            return 2000;
+            break;
+        case "III":
+            return 3000;
+            break;
+        case "IV":
+            return 4000;
+            break;
+        case "V":
+            return 5000;
+            break;
+        case "VI":
+            return 6000;
+            break;
+        case "VII":
+            return 7000;
+            break;
+        case "VIII":
+            return 8000;
+            break;
+        case "IX":
+            return 9000;
+            break;
+        case "X":
+            return 10000;
+            break;
+        case "XI":
+            return 11000;
+            break;
+        case "XII":
+            return 12000;
+            break;
+        case "XIII":
+            return 13000;
+            break;
+        case "XIV":
+            return 14000;
+            break;
+        case "XV":
+            return 15000;
+            break;
+        case "XVI":
+            return 16000;
+            break;
+        case "XVII":
+            return 17000;
+            break;
+        case "XVIII":
+            return 18000;
+            break;
+        case "XIX":
+            return 19000;
+            break;
+        case "XX":
+            return 20000;
+            break;
+        default:
+            return 0;
+    }
+}
+
+function makeItems($termArray)
+{
     $retArray = array();
 
-    foreach($termArray as $term) {
+    foreach ($termArray as $term) {
         $retArray[] = "\"" . $term . "\"";
     }
     return implode(", ", $retArray);
 }
 
-function get_facets($field, $filter, $type) {
+function get_facets($field, $filter, $type)
+{
     if ($type == 'long') {
         $amount = 10;
     } else {
         $amount = 5;
     }
-    if ($field == "schipper_naam")
-    {
-    $json_struc = "{\"query\": {\"regexp\": {\"schipper_achternaam\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+    if ($field == "schipper_naam") {
+        $json_struc = "{\"query\": {\"regexp\": {\"schipper_achternaam\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
     } else {
         $json_struc = "{\"query\": {\"regexp\": {\"$field\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
     }
@@ -129,7 +227,8 @@ function get_facets($field, $filter, $type) {
     send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
 }
 
-function get_nested_facets($field, $type, $filter = "") {
+function get_nested_facets($field, $type, $filter = "")
+{
     switch ($type) {
         case "long":
             $amount = 10;
@@ -149,7 +248,8 @@ function get_nested_facets($field, $type, $filter = "") {
     send_json(array("buckets" => $result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"]));
 }
 
-function get_initial_facets($field, $type) {
+function get_initial_facets($field, $type)
+{
     switch ($type) {
         case "long":
             $amount = 10;
@@ -167,18 +267,21 @@ function get_initial_facets($field, $type) {
 }
 
 
-
-function throw_error($error = "Bad request") {
+function throw_error($error = "Bad request")
+{
     $response = array("error" => $error);
     send_json($response);
 }
 
-function send_json($message_array) {
+function send_json($message_array)
+{
     header('Content-Type: application/json; charset=UTF-8');
     header('Access-Control-Allow-Origin: *');
     echo json_encode($message_array);
 }
-function send_elastic($json) {
+
+function send_elastic($json)
+{
     header('Content-Type: application/json; charset=UTF-8');
     header('Access-Control-Allow-Origin: *');
     echo $json;
