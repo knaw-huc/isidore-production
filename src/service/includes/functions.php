@@ -213,9 +213,9 @@ function makeItems($termArray)
 function get_facets($field, $filter, $type)
 {
     if ($type == 'long') {
-        $amount = 10;
+        $amount = 400;
     } else {
-        $amount = 5;
+        $amount = 10;
     }
     if ($field == "schipper_naam") {
         $json_struc = "{\"query\": {\"regexp\": {\"schipper_achternaam\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
@@ -231,13 +231,13 @@ function get_nested_facets($field, $type, $filter = "")
 {
     switch ($type) {
         case "long":
-            $amount = 10;
+            $amount = 400;
             break;
         case "normal":
             $amount = 100;
             break;
         default:
-            $amount = 5;
+            $amount = 10;
             break;
     }
     $field_elements = explode(".", $field);
@@ -252,13 +252,13 @@ function get_initial_facets($field, $type)
 {
     switch ($type) {
         case "long":
-            $amount = 10;
+            $amount = 400;
             break;
         case "normal":
             $amount = 100;
             break;
         default:
-            $amount = 5;
+            $amount = 10;
             break;
     }
     $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";

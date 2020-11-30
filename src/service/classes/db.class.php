@@ -97,7 +97,7 @@ class db
         } else {
             $retArray[] = str_replace("(x mm), ", "", "(" . $item["writing_window_height_min"] . "x" . $item["writing_window_width_min"] . " mm), " . $item["lines"] . " lines, " . $item["columns"] . " columns");
         }
-        return $retArray;
+        return implode(", ", $retArray);
     }
 
     private function createRelatedManuscriptsList($item)
