@@ -32,7 +32,6 @@ function detail($id)
 
 function elastic($json_struc)
 {
-
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
 
     $ch = curl_init(ELASTIC_HOST);
@@ -52,7 +51,6 @@ function search($codedStruc)
     $queryArray = json_decode(base64_decode($codedStruc), true);
     $json_struc = parse_codedStruc($queryArray);
     $send_back = array();
-    error_log($json_struc);
     $result = elastic($json_struc);
     $send_back["amount"] = $result["hits"]["total"]["value"];
     $send_back["pages"] = ceil($send_back["amount"] / $queryArray["page_length"]);
@@ -73,13 +71,12 @@ function parse_codedStruc($queryArray)
         $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
         //error_log($json_struc);
     } else {
-        $json_struc = buildQuery($queryArray, $from, $sortOrder);
+        $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder);
     }
-    error_log($json_struc);
     return $json_struc;
 }
 
-function buildQuery($queryArray, $from, $sortOrder)
+function buildQuery($queryArray, $from, $page_length, $sortOrder)
 {
     $terms = array();
 
@@ -93,7 +90,7 @@ function buildQuery($queryArray, $from, $sortOrder)
 
     }
 
-    return queryTemplate(implode(",", $terms), $from, $sortOrder);
+    return queryTemplate(implode(",", $terms), $from, $page_length, $sortOrder);
 }
 
 function matchTemplate($term, $value)
@@ -116,9 +113,9 @@ function nestedTemplate($fieldArray, $value)
     return "{\"nested\": {\"path\": \"$path\",\"query\": {\"bool\": {\"must\": [{\"terms\": {\"$field.raw\": [$value]}}]}}}}";
 }
 
-function queryTemplate($terms, $from, $sortOrder)
+function queryTemplate($terms, $from, $page_legth, $sortOrder)
 {
-    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 20, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_legth, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
 }
 
 function bookValues($book)
@@ -222,7 +219,6 @@ function get_facets($field, $filter, $type)
     } else {
         $json_struc = "{\"query\": {\"regexp\": {\"$field\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
     }
-
     $result = elastic($json_struc);
     send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
 }

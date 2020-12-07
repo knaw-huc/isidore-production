@@ -55,7 +55,18 @@ class db
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
         $manuscript["bibliography"] = $this->createBibliography($item);
         $manuscript["digitized_at"] = $this->createDigitalVersions($item);
+        $manuscript["page_number"] = $this->getPageNumber($id);
         return $manuscript;
+    }
+
+    private function getPageNumber($id) {
+        $results = $this->ass_arr(pg_query($this->con, "SELECT subscript FROM image_subscripts WHERE m_id = '$id'"));
+        if (count($results)) {
+            return $results[0]["subscript"];
+        } else {
+            return "";
+        }
+
     }
 
     private function stuffEmpty($str) {
