@@ -32,13 +32,12 @@ function detail($id)
 
 function elastic($json_struc)
 {
+    //error_log($json_struc);
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
-
     $ch = curl_init(ELASTIC_HOST);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $options);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
     curl_setopt($ch, CURLOPT_POSTFIELDS, $json_struc);
-    //curl_setopt($ch, CURLOPT_VERBOSE, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $response = curl_exec($ch);
     curl_close($ch);
@@ -67,9 +66,7 @@ function parse_codedStruc($queryArray)
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
-        //$json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": 50, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"id.keyword\": {\"order\":\"asc\"}}]}";
         $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
-        //error_log($json_struc);
     } else {
         $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder);
     }
@@ -100,7 +97,6 @@ function matchTemplate($term, $value)
             return "{\"multi_match\": {\"query\": $value}}";
         case "BOOK":
             return bookValues($value);
-            break;
         default:
             return "{\"terms\": {\"$term.raw\": [$value]}}";
     }
@@ -113,9 +109,9 @@ function nestedTemplate($fieldArray, $value)
     return "{\"nested\": {\"path\": \"$path\",\"query\": {\"bool\": {\"must\": [{\"terms\": {\"$field.raw\": [$value]}}]}}}}";
 }
 
-function queryTemplate($terms, $from, $page_legth, $sortOrder)
+function queryTemplate($terms, $from, $page_length, $sortOrder)
 {
-    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_legth, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
 }
 
 function bookValues($book)
@@ -207,23 +203,78 @@ function makeItems($termArray)
     return implode(", ", $retArray);
 }
 
-function get_facets($field, $filter, $type)
+function get_filter_facets($searchStruc)
+{
+    $queryArray = json_decode(base64_decode($searchStruc), true);
+    $subQuery = parseQueryFields($queryArray);
+    $values = array();
+    $values["annotations"] = get_filter_facet_amount("annotations", "yes", $subQuery);
+    $values["digitized"] = get_filter_facet_amount("digitized", "yes", $subQuery);
+    $values["excluded"] = get_filter_facet_amount("excluded", "yes", $subQuery);
+    $values["part"] = get_filter_facet_amount("part", "yes", $subQuery);
+    send_json($values);
+}
+
+function parseQueryFields($queryArray) {
+    if ($queryArray["searchvalues"] == "none" ) {
+        return "none";
+    }
+
+    $terms = array();
+
+    foreach ($queryArray["searchvalues"] as $item) {
+        if (strpos($item["field"], '.')) {
+            $fieldArray = explode(".", $item["field"]);
+            $terms[] = nestedTemplate($fieldArray, makeItems($item["values"]));
+        } else {
+            $terms[] = matchTemplate($item["field"], makeItems($item["values"]));
+        }
+
+    }
+
+    return implode(",", $terms);
+}
+
+function get_filter_facet_amount($field, $value, $subQuery)
+{
+    $retValue = 0;
+    if ($subQuery == "none") {
+        $json_struc = "{\"size\": 0, \"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\", \"size\": 10}}}}";
+    } else {
+        $json_struc = "{ \"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\", \"size\": 10}}}}";
+    }
+
+    $result = elastic($json_struc);
+    $buckets = $result["aggregations"]["names"]["buckets"];
+    foreach ($buckets as $bucket) {
+        if ($bucket["key"] == $value) {
+            $retValue = $bucket["doc_count"];
+        }
+    }
+    return $retValue;
+}
+
+
+function get_facets($field,  $searchStruc, $filter, $type)
 {
     if ($type == 'long') {
         $amount = 400;
     } else {
         $amount = 10;
     }
-    if ($field == "schipper_naam") {
-        $json_struc = "{\"query\": {\"regexp\": {\"schipper_achternaam\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
-    } else {
+    $queryArray = json_decode(base64_decode($searchStruc), true);
+    $subQuery = parseQueryFields($queryArray);
+    if ($subQuery == "none") {
         $json_struc = "{\"query\": {\"regexp\": {\"$field\": {\"value\": \"$filter.*\"}}},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+    } else {
+        $json_struc = "{\"query\":  {\"bool\": { \"must\": [ $subQuery , {\"regexp\": {\"$field\": {\"value\": \"$filter.*\"}}}] }},\"aggs\": {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
     }
+
     $result = elastic($json_struc);
     send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
 }
 
-function get_nested_facets($field, $type, $filter = "")
+function get_nested_facets($field, $searchStruc, $type, $filter = "")
 {
     switch ($type) {
         case "long":
@@ -236,15 +287,22 @@ function get_nested_facets($field, $type, $filter = "")
             $amount = 10;
             break;
     }
+    $queryArray = json_decode(base64_decode($searchStruc), true);
+    $subQuery = parseQueryFields($queryArray);
+
     $field_elements = explode(".", $field);
     $path = $field_elements[0];
-    $json_struc = "{\"size\": 0,\"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
+    if ($subQuery == "none") {
+        $json_struc = "{\"size\": 0,\"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
+    } else {
+        $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
+    }
     //error_log($json_struc);
     $result = elastic($json_struc);
     send_json(array("buckets" => $result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"]));
 }
 
-function get_initial_facets($field, $type)
+function get_initial_facets($field, $searchStruc, $type)
 {
     switch ($type) {
         case "long":
@@ -257,7 +315,14 @@ function get_initial_facets($field, $type)
             $amount = 10;
             break;
     }
-    $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+
+    $queryArray = json_decode(base64_decode($searchStruc), true);
+    $subQuery = parseQueryFields($queryArray);
+    if ($subQuery == "none") {
+        $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+    } else {
+        $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+    }
     $result = elastic($json_struc);
     echo send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
 }

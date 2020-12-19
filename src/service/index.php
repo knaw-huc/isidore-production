@@ -34,30 +34,36 @@ switch ($page) {
         break;
     case "elastic":
         if (isset($segments[3])) {
-            switch($segments[3]) {
+            switch ($segments[3]) {
                 case "initial_facet":
-                    if (isset($segments[4]) && isset($segments[5])) {
-                        get_initial_facets($segments[4], $segments[5]);
+                    if (isset($segments[4]) && isset($segments[5]) && isset($segments[6])) {
+                        get_initial_facets($segments[4], $segments[5], $segments[6]);
                     } else {
                         throw_error();
                     }
                     break;
                 case "facet":
-                    if (isset($segments[4]) && isset($segments[5]) && isset($segments[6])) {
-                        get_facets($segments[4], $segments[6], $segments[5]);
+                    if (isset($segments[4]) && isset($segments[5]) && isset($segments[6]) && isset($segments[7])) {
+                        get_facets($segments[4], $segments[5], $segments[7], $segments[6]);
                     } else {
                         throw_error();
                     }
                     break;
                 case "nested_facet":
-                    if (isset($segments[4]) && isset($segments[5])) {
-                        if (isset($segments[6]))
-                        {
-                            get_nested_facets($segments[4], $segments[5], strtolower($segments[6]));
+                    if (isset($segments[4]) && isset($segments[5]) && isset($segments[6])) {
+                        if (isset($segments[7])) {
+                            get_nested_facets($segments[4], $segments[5], $segments[6], strtolower($segments[7]));
                         } else {
-                            get_nested_facets($segments[4], $segments[5]);
+                            get_nested_facets($segments[4], $segments[5], $segments[6]);
                         }
 
+                    } else {
+                        throw_error();
+                    }
+                    break;
+                case "filter_facets":
+                    if (isset($segments[4])) {
+                        get_filter_facets($segments[4]);
                     } else {
                         throw_error();
                     }
@@ -65,8 +71,7 @@ switch ($page) {
                 case "search":
                     if (isset($segments[4])) {
                         search($segments[4]);
-                    }
-                    else {
+                    } else {
                         throw_error();
                     }
                     break;
