@@ -25,6 +25,13 @@ switch ($page) {
             throw_error();
         }
         break;
+    case "download":
+        if (isset($segments[3])) {
+            download($segments[3]);
+        } else {
+            throw_error();
+        }
+        break;
     case "detail":
         if (isset($segments[3])) {
             detail($segments[3]);

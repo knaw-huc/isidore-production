@@ -44,6 +44,27 @@ function elastic($json_struc)
     return json_decode($response, true);
 }
 
+function download($codedStruc)
+{
+    global $db;
+
+    $queryArray = json_decode(base64_decode($codedStruc), true);
+    $json_struc = parse_codedStruc($queryArray, true);
+    $result = elastic($json_struc);
+    $ids = array();
+    foreach ($result["hits"]["hits"] as $manuscript) {
+        $ids[] = "'" . $manuscript["_source"]["id"] . "'";
+    }
+    $downloadData = $db->getDownloadDetails(implode(", ", $ids));
+    $row = $downloadData[0];
+    header("Content-Disposition: attachment; filename=isidore_results.csv");
+    header("Content-Type: text/csv");
+    $fp = fopen('php://output', 'w');
+    fputcsv($fp, array_keys($row), "\t");
+    foreach ($downloadData as $data) {
+       fputcsv($fp, $data, "\t", '"');
+    }
+}
 
 function search($codedStruc)
 {
@@ -60,7 +81,7 @@ function search($codedStruc)
     send_json($send_back);
 }
 
-function parse_codedStruc($queryArray)
+function parse_codedStruc($queryArray, $download = false)
 {
     $page_length = $queryArray["page_length"];
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
@@ -68,12 +89,12 @@ function parse_codedStruc($queryArray)
     if ($queryArray["searchvalues"] == "none") {
         $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": 0, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
     } else {
-        $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder);
+        $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder, $download);
     }
     return $json_struc;
 }
 
-function buildQuery($queryArray, $from, $page_length, $sortOrder)
+function buildQuery($queryArray, $from, $page_length, $sortOrder, $download)
 {
     $terms = array();
 
@@ -87,7 +108,7 @@ function buildQuery($queryArray, $from, $page_length, $sortOrder)
 
     }
 
-    return queryTemplate(implode(",", $terms), $from, $page_length, $sortOrder);
+    return queryTemplate(implode(",", $terms), $from, $page_length, $sortOrder, $download);
 }
 
 function matchTemplate($term, $value)
@@ -109,9 +130,14 @@ function nestedTemplate($fieldArray, $value)
     return "{\"nested\": {\"path\": \"$path\",\"query\": {\"bool\": {\"must\": [{\"terms\": {\"$field.raw\": [$value]}}]}}}}";
 }
 
-function queryTemplate($terms, $from, $page_length, $sortOrder)
+function queryTemplate($terms, $from, $page_length, $sortOrder, $download)
 {
-    return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+    if ($download) {
+        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 500, \"from\": 0, \"_source\": [\"id\"]}";
+    } else {
+        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+    }
+
 }
 
 function bookValues($book)
@@ -215,8 +241,9 @@ function get_filter_facets($searchStruc)
     send_json($values);
 }
 
-function parseQueryFields($queryArray) {
-    if ($queryArray["searchvalues"] == "none" ) {
+function parseQueryFields($queryArray)
+{
+    if ($queryArray["searchvalues"] == "none") {
         return "none";
     }
 
@@ -255,7 +282,7 @@ function get_filter_facet_amount($field, $value, $subQuery)
 }
 
 
-function get_facets($field,  $searchStruc, $filter, $type)
+function get_facets($field, $searchStruc, $filter, $type)
 {
     if ($type == 'long') {
         $amount = 400;

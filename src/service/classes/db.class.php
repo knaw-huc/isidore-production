@@ -28,7 +28,25 @@ class db
         }
     }
 
-    private function buildManuscriptInstance($item)
+    function getDownloadDetails($range) {
+        $results = pg_query($this->con, "SELECT * FROM manuscripts WHERE id IN ($range)");
+        $items = $this->ass_arr($results);
+        if (count($items)) {
+            return $this->buildDownload($items);
+        } else {
+            return 0;
+        }
+    }
+
+    private function buildDownload($items) {
+        $retArray = array();
+        foreach ($items as $item) {
+            $retArray[] = $this->buildManuscriptInstance($item, true);
+        }
+        return $retArray;
+    }
+
+    private function buildManuscriptInstance($item, $download = false)
     {
         $id = $item["id"];
         $manuscript = array();
@@ -45,16 +63,16 @@ class db
         $manuscript["no_of_folia"] = $item["no_of_folia"];
         $manuscript["layout"] = $this->createLayout($item);
         $manuscript["script"] = $this->getScript($id);
-        $manuscript["content"] = $this->getContent($id);
+        $manuscript["content"] = $this->getContent($id, $download);
         $manuscript["type"] = $this->getContentType($id);
-        $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"]);
-        $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"]);
-        $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($item);
+        $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
+        $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
+        $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($item, $download);
         $manuscript["annotations"] = $this->stuffEmpty($item["annotations"]);
         $manuscript["innovations"] = $this->stuffEmpty($item["innovations"]);
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
-        $manuscript["bibliography"] = $this->createBibliography($item);
-        $manuscript["digitized_at"] = $this->createDigitalVersions($item);
+        $manuscript["bibliography"] = $this->createBibliography($item, $download);
+        $manuscript["digitized_at"] = $this->createDigitalVersions($item, $download);
         $manuscript["page_number"] = $this->getPageNumber($id);
         return $manuscript;
     }
@@ -78,8 +96,13 @@ class db
         }
     }
 
-    private function createLines($str) {
-        return $this->trexplode(";", $str);
+    private function createLines($str, $download) {
+        if ($download) {
+            return implode("\n", $this->trexplode(";", $str));
+        } else {
+            return $this->trexplode(";", $str);
+        }
+
     }
 
     private function getScript($id)
@@ -111,11 +134,15 @@ class db
         return implode(", ", $retArray);
     }
 
-    private function createRelatedManuscriptsList($item)
+    private function createRelatedManuscriptsList($item, $download)
     {
         $retArray = array();
         if (is_null($item["reason_for_relationship"]) || strlen($item["reason_for_relationship"]) == 0) {
-            return $retArray;
+            if ($download) {
+                return "-";
+            } else {
+                return $retArray;
+            }
         }
         $reasons = $this->trexplode("+", $item["reason_for_relationship"]);
         $intern = $this->trexplode("+", $item["related_mss_in_the_database"]);
@@ -137,7 +164,25 @@ class db
             }
             $retArray[] = $tmpArray;
         }
-        return $retArray;
+        if ($download) {
+            return $this->flattenRelationArray($retArray);
+        } else {
+            return $retArray;
+        }
+
+    }
+
+    private function flattenRelationArray($rels) {
+        $retArray = array();
+
+        foreach ($rels as $rel) {
+            $retArray[] = $rel["reason"];
+            foreach ($rel["intern"] as $element) {
+                $retArray[] = $element["shelfmark"] . "(" . $element["id"] . ")";
+            }
+            $retArray[] = implode("\n", $rel["extern"]);
+        }
+        return implode("\n", $retArray);
     }
 
     private function getInternRelations($str)
@@ -166,34 +211,72 @@ class db
         return $retArray;
     }
 
-    private function createBibliography($item)
+    private function createBibliography($item, $download)
     {
         $books = $this->trexplode(";", $item["bibliography"]);
-        return $books;  
+        if ($download) {
+           return implode("\n", $books);
+        } else {
+            return $books;
+        }
     }
 
-    private function createDigitalVersions($item)
+    private function createDigitalVersions($item, $download)
     {
         $retArray = array();
         if (!is_null($item["url_images_1"]) && strlen($item["url_images_1"]) > 0) {
-            $retArray[] = array( "item" => $item["url_images_1"]);
+            if ($download) {
+                $retArray[] = $item["url_images_1"];
+            } else {
+                $retArray[] = array( "item" => $item["url_images_1"]);
+            }
         }
         if (!is_null($item["url_images_2"]) && strlen($item["url_images_2"]) > 0) {
-            $retArray[] = array( "item" => $item["url_images_2"]);
+            if ($download) {
+                $retArray[] = $item["url_images_2"];
+            } else {
+                $retArray[] = array( "item" => $item["url_images_2"]);
+            }
         }
         if (!is_null($item["url_images_3"]) && strlen($item["url_images_3"]) > 0) {
-            $retArray[] = array( "item" => $item["url_images_3"]);
+            if ($download) {
+                $retArray[] = $item["url_images_3"];
+            } else {
+                $retArray[] = array( "item" => $item["url_images_3"]);
+            }
         }
         if (!is_null($item["url_images_4"]) && strlen($item["url_images_4"]) > 0) {
-            $retArray[] = array( "item" => $item["url_images_4"]);
+            if ($download) {
+                $retArray[] = $item["url_images_4"];
+            } else {
+                $retArray[] = array( "item" => $item["url_images_4"]);
+            }
         }
-        return $retArray;
+
+        if ($download) {
+            return implode("\n",$retArray);
+        } else {
+            return $retArray;
+        }
+
     }
 
-    private function getContent($id)
+    private function getContent($id, $download)
     {
         $results = pg_query($this->con, "SELECT details, locations FROM manuscripts_details_locations WHERE m_id = '$id'");
-        return $this->ass_arr($results);
+        if ($download) {
+            return $this->contentDownload($this->ass_arr($results));
+        } else {
+            return $this->ass_arr($results);
+        }
+    }
+
+    private function contentDownload($arr) {
+        $retArr = array();
+        foreach ($arr as $element) {
+            $retArr[] = implode(", ", array_values($element));
+        }
+        return implode("\n", $retArr);
     }
 
     private function getContentType($id)
