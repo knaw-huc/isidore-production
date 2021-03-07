@@ -56,10 +56,15 @@ class db
         $manuscript["material_type"] = $item["material_type"];
         $manuscript["bischoff"] = $item["bischoff"];
         $manuscript["anspach"] = $item["anspach"];
+        $manuscript["cla"] = $item["cla"];
         $manuscript["bischoff_cla_date"] = $item["bischoff_cla_date"];
+        $manuscript["source_dating"] = $this->get_source($id);
         $manuscript["place_absolute"] = $this->get_place($id);
-        $manuscript["certainty"] = $item["certainty"];
-        $manuscript["provenance"] = $item["provenance"];
+        $manuscript["certainty"] = $this->get_certainty($id);
+        $manuscript["physical_state_scaled"] = $this->get_physical_state($id);
+        $manuscript["physical_state"] = $item["physical_state_detail"];
+        $manuscript["provenances"] = $this->get_provenance($id);
+        $manuscript["designed_as"] = $this->get_designed_as($id);
         $manuscript["no_of_folia"] = $item["no_of_folia"];
         $manuscript["layout"] = $this->createLayout($item);
         $manuscript["script"] = $this->getScript($id);
@@ -69,12 +74,20 @@ class db
         $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
         $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($item, $download);
         $manuscript["annotations"] = $this->stuffEmpty($item["annotations"]);
+        $manuscript["diagrams"] = $this->stuffEmpty($item["diagrams"]);
         $manuscript["innovations"] = $this->stuffEmpty($item["innovations"]);
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
         $manuscript["bibliography"] = $this->createBibliography($item, $download);
         $manuscript["digitized_at"] = $this->createDigitalVersions($item, $download);
+        $manuscript["url_other"] = $this->stuffEmpty($item["url_other"]);
         $manuscript["page_number"] = $this->getPageNumber($id);
         return $manuscript;
+    }
+
+
+    private function get_provenance($id) {
+        $results = pg_query($this->con, "SELECT provenance  FROM provenance_scaled pd, manuscripts_provenance_scaled m WHERE m.m_id = '$id' AND m.p_id = pd.p_id");
+        return $this->ass_arr($results);
     }
 
     private function getPageNumber($id) {
@@ -92,7 +105,8 @@ class db
         {
             return "-";
         } else {
-            return $str;
+            return str_replace("amp;", "", $str);
+            //return $str;
         }
     }
 
@@ -113,6 +127,39 @@ class db
             return $items[0]["script"];
         } else {
             return "";
+        }
+    }
+
+    private function get_source($id)
+    {
+        $results = pg_query($this->con, "select s.source from manuscripts_source_of_dating ms, source_of_dating s WHERE ms.s_id = s.s_id AND ms.m_id = '$id'");
+        $items = $this->ass_arr($results);
+        if (isset($items[0]["source"])) {
+            return $items[0]["source"];
+        } else {
+            return "";
+        }
+    }
+
+    private function get_physical_state($id)
+    {
+        $results = pg_query($this->con, "select physical_state FROM physical_state WHERE m_id = '$id'");
+        $items = $this->ass_arr($results);
+        if (isset($items[0]["physical_state"])) {
+            return $items[0]["physical_state"];
+        } else {
+            return "";
+        }
+    }
+
+    private function get_designed_as($id)
+    {
+        $results = pg_query($this->con, "select d.designed_as from manuscripts_designed_as md, designed_as d WHERE md.design_id = d.design_id AND md.m_id = '$id'");
+        $items = $this->ass_arr($results);
+        if (isset($items[0]["designed_as"])) {
+            return $items[0]["designed_as"];
+        } else {
+            return "-";
         }
     }
 
@@ -213,7 +260,9 @@ class db
 
     private function createBibliography($item, $download)
     {
-        $books = $this->trexplode(";", $item["bibliography"]);
+        $tmp = str_replace("</i>", "", $item["bibliography"]);
+        $tmp = str_replace("<i>", "", $tmp);
+        $books = $this->trexplode(";", $tmp);
         if ($download) {
            return implode("\n", $books);
         } else {
@@ -263,12 +312,36 @@ class db
 
     private function getContent($id, $download)
     {
-        $results = pg_query($this->con, "SELECT details, locations FROM manuscripts_details_locations WHERE m_id = '$id'");
+        $results = pg_query($this->con, "SELECT material_type, books_included, string_agg( details, ';') details , string_agg( locations, ';') locations from manuscripts_details_locations WHERE m_id = '$id' GROUP BY material_type, books_included");
         if ($download) {
             return $this->contentDownload($this->ass_arr($results));
         } else {
-            return $this->ass_arr($results);
+            $retArray = [];
+            foreach ( $this->ass_arr($results) as $item ) {
+                $buffer = [];
+                $buffer["material_type"] = $item["material_type"];
+                $buffer["books_included"] = $item["books_included"];
+                $details = explode(";", $item["details"]);
+                $locations = explode(";", $item["locations"]);
+                $buffer["details"] = $this->merge($details, $locations);
+                $retArray[] = $buffer;
+            }
+            return $retArray;
         }
+    }
+
+    private function merge($details, $locations) {
+        $count = count($details);
+        $retArray = array();
+
+        for ($i = 0; $i < $count; $i++)
+        {
+            $buffer = array();
+            $buffer["details"] = $details[$i];
+            $buffer["locations"] = $locations[$i];
+            $retArray[] = $buffer;
+        }
+        return $retArray;
     }
 
     private function contentDownload($arr) {
@@ -297,6 +370,17 @@ class db
             return $items[0]["place_absolute"];
         } else {
             return "-";
+        }
+    }
+
+    private function get_certainty($id)
+    {
+        $results = pg_query($this->con, "SELECT certainty  FROM manuscripts_absolute_places WHERE m_id = '$id'");
+        $items = $this->ass_arr($results);
+        if (count($items)) {
+            return $items[0]["certainty"];
+        } else {
+            return "";
         }
     }
 

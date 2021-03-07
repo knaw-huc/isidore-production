@@ -87,7 +87,7 @@ function parse_codedStruc($queryArray, $download = false)
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
-        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"],\"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     } else {
         $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder, $download);
     }
@@ -135,7 +135,7 @@ function queryTemplate($terms, $from, $page_length, $sortOrder, $download)
     if ($download) {
         return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 500, \"from\": 0, \"_source\": [\"id\"]}";
     } else {
-        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"]}";
+        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     }
 
 }
