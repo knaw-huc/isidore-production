@@ -298,7 +298,7 @@ function get_facets($field, $searchStruc, $filter, $type)
     }
 
     $result = elastic($json_struc);
-    send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
+    send_json(array("buckets" => sortResult($result["aggregations"]["names"]["buckets"])));
 }
 
 function get_nested_facets($field, $searchStruc, $type, $filter = "")
@@ -326,7 +326,20 @@ function get_nested_facets($field, $searchStruc, $type, $filter = "")
     }
     //error_log($json_struc);
     $result = elastic($json_struc);
-    send_json(array("buckets" => $result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"]));
+    send_json(array("buckets" => sortResult($result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"])));
+}
+
+function sortResult($arr) {
+    usort($arr, "cmp");
+    return $arr;
+}
+
+function cmp($a, $b)
+{
+    if (strtolower($a["key"]) == strtolower($b["key"])) {
+        return 0;
+    }
+    return (strtolower($a["key"]) < strtolower($b["key"])) ? -1 : 1;
 }
 
 function get_initial_facets($field, $searchStruc, $type)
