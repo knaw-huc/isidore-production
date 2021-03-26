@@ -32,7 +32,7 @@ function detail($id)
 
 function elastic($json_struc)
 {
-    //error_log($json_struc);
+    error_log($json_struc);
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
     $ch = curl_init(ELASTIC_HOST);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $options);
@@ -115,7 +115,7 @@ function matchTemplate($term, $value)
 {
     switch ($term) {
         case "FREE_TEXT":
-            return "{\"multi_match\": {\"query\": $value, \"fields\": []}}";
+            return "{\"multi_match\": {\"query\": $value, \"fields\": [\"fulltext\"]}}";
         case "BOOK":
             return bookValues($value);
         default:
@@ -359,7 +359,7 @@ function get_initial_facets($field, $searchStruc, $type)
     $queryArray = json_decode(base64_decode($searchStruc), true);
     $subQuery = parseQueryFields($queryArray);
     if ($subQuery == "none") {
-        $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+        $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount, \"order\": {\"_key\": \"asc\"}}, \"aggs\": {\"byHash\": {\"terms\": {\"field\": \"hash\"}}}}}}";
     } else {
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
     }
