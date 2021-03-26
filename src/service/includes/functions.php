@@ -115,7 +115,7 @@ function matchTemplate($term, $value)
 {
     switch ($term) {
         case "FREE_TEXT":
-            return "{\"multi_match\": {\"query\": $value}}";
+            return "{\"multi_match\": {\"query\": $value, \"fields\": []}}";
         case "BOOK":
             return bookValues($value);
         default:
