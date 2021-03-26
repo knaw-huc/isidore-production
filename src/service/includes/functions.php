@@ -361,7 +361,7 @@ function get_initial_facets($field, $searchStruc, $type)
     if ($subQuery == "none") {
         $json_struc = "{\"size\": 0,\"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount, \"order\": {\"_key\": \"asc\"}}, \"aggs\": {\"byHash\": {\"terms\": {\"field\": \"hash\"}}}}}}";
     } else {
-        $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount }}}}";
+        $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount, \"order\": {\"_key\": \"asc\"}}, \"aggs\": {\"byHash\": {\"terms\": {\"field\": \"hash\"}}}}}}";
     }
     $result = elastic($json_struc);
     echo send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
