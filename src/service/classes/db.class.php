@@ -187,14 +187,12 @@ class db
         if (is_null($item["reason_for_relationship"]) || strlen($item["reason_for_relationship"]) == 0) {
             if ($download) {
                 return "-";
-            } else {
-                return $retArray;
             }
         }
         $reasons = $this->trexplode("+", $item["reason_for_relationship"]);
         $intern = $this->trexplode("+", $item["related_mss_in_the_database"]);
         $extern = $this->trexplode("+", $item["related_mss_outside_of_the_database"]);
-        if (count($reasons) > 0) {
+        if ((!is_null($item["reason_for_relationship"]) || strlen($item["reason_for_relationship"]) != 0)) {
             for ($i = 0; $i < count($reasons); $i++) {
                 $tmpArray = array();
                 $tmpArray["reason"] = $reasons[$i];
@@ -208,9 +206,24 @@ class db
                 } else {
                     $tmpArray["extern"] = array();
                 }
+                $retArray[] = $tmpArray;
+            }
+        } else {
+            $tmpArray = array();
+            $tmpArray["reason"] = "-";
+            if (isset($intern[0])) {
+                $tmpArray["intern"] = $this->getInternRelations($intern[0]);
+            } else {
+                $tmpArray["intern"] = array();
+            }
+            if (isset($extern[0])) {
+                $tmpArray["extern"] = $this->trexplode(";", $extern[0]);
+            } else {
+                $tmpArray["extern"] = array();
             }
             $retArray[] = $tmpArray;
         }
+        //error_log(print_r($retArray, true));
         if ($download) {
             return $this->flattenRelationArray($retArray);
         } else {
@@ -387,7 +400,7 @@ class db
     function elastic($json_struc)
     {
         $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
-        error_log($json_struc);
+        //error_log($json_struc);
         $ch = curl_init(ELASTIC_HOST);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $options);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");

@@ -116,6 +116,11 @@ function matchTemplate($term, $value)
     switch ($term) {
         case "FREE_TEXT":
             return "{\"multi_match\": {\"query\": $value, \"fields\": [\"fulltext\"]}}";
+        case "DATE_NUMERICAL":
+            $range = explode("-", str_replace('"', '',$value));
+            $lower = $range[0];
+            $upper = $range[1];
+            return "{\"nested\": {\"path\": \"scaled_dates\",\"query\": {\"range\": {\"scaled_dates.lower\": {\"gte\": $lower}}}}},{\"nested\": {\"path\": \"scaled_dates\",\"query\": {\"range\": {\"scaled_dates.upper\": {\"lt\": $upper}}}}}";
         case "BOOK":
             return bookValues($value);
         default:
