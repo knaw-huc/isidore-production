@@ -28,7 +28,8 @@ class db
         }
     }
 
-    function getDownloadDetails($range) {
+    function getDownloadDetails($range)
+    {
         $results = pg_query($this->con, "SELECT * FROM manuscripts WHERE id IN ($range)");
         $items = $this->ass_arr($results);
         if (count($items)) {
@@ -38,7 +39,8 @@ class db
         }
     }
 
-    private function buildDownload($items) {
+    private function buildDownload($items)
+    {
         $retArray = array();
         foreach ($items as $item) {
             $retArray[] = $this->buildManuscriptInstance($item, true);
@@ -52,6 +54,8 @@ class db
         $manuscript = array();
         $manuscript["id"] = $item["id"];
         $manuscript["shelfmark"] = $item["shelfmark"];
+        $manuscript["former_shelfmarks"] = $item["former_shelfmarks"];
+        $manuscript["siglum"] = $item["siglum"];
         $manuscript["steinova"] = $item["steinova"];
         $manuscript["material_type"] = $item["material_type"];
         $manuscript["bischoff"] = $item["bischoff"];
@@ -63,7 +67,7 @@ class db
         $manuscript["certainty"] = $this->get_certainty($id);
         $manuscript["physical_state_scaled"] = $this->get_physical_state($id);
         $manuscript["physical_state"] = $item["physical_state_detail"];
-        $manuscript["provenances"] = $this->get_provenance($id);
+        $manuscript["provenances"] = $this->get_provenance($id, $download);
         $manuscript["designed_as"] = $this->get_designed_as($id);
         $manuscript["no_of_folia"] = $item["no_of_folia"];
         $manuscript["layout"] = $this->createLayout($item);
@@ -72,25 +76,39 @@ class db
         $manuscript["type"] = $this->getContentType($id);
         $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
         $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
-        $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($item, $download);
-        $manuscript["annotations"] = $this->stuffEmpty($item["annotations"]);
-        $manuscript["diagrams"] = $this->stuffEmpty($item["diagrams"]);
+        $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($id, $download);
+        $manuscript["interpolations"] = $this->getInterpolations($id);
+        $manuscript["easter_tables"] = $this->getEasterTables($id);
+        $manuscript["annotations"] = $this->getAnnotations($id);
+        $manuscript["diagrams"] = $this->getDiagrams($id);
         $manuscript["innovations"] = $this->stuffEmpty($item["innovations"]);
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
         $manuscript["bibliography"] = $this->createBibliography($item, $download);
-        $manuscript["digitized_at"] = $this->createDigitalVersions($item, $download);
+        $manuscript["digitized_at"] = $this->createDigitalVersions($id, $download);
         $manuscript["url_other"] = $this->stuffEmpty($item["url_other"]);
         $manuscript["page_number"] = $this->getPageNumber($id);
+        $manuscript["created_by"] = $item["created_by"];
+        $manuscript["created_on"] = $item["created_on"];
+        $manuscript["contributions_from"] = $item["contributions_from"];
+        $manuscript["completeness_of_the_record"] = $item["completeness_of_the_record"];
+        $manuscript["last_updated_on"] = $item["last_updated_on"];
         return $manuscript;
     }
 
 
-    private function get_provenance($id) {
+    private function get_provenance($id, $download)
+    {
         $results = pg_query($this->con, "SELECT provenance  FROM provenance_scaled pd, manuscripts_provenance_scaled m WHERE m.m_id = '$id' AND m.p_id = pd.p_id");
-        return $this->ass_arr($results);
+        if ($download) {
+            return $this->flattenProvenanceArray($this->ass_arr($results));
+        } else {
+            return $this->ass_arr($results);
+        }
+
     }
 
-    private function getPageNumber($id) {
+    private function getPageNumber($id)
+    {
         $results = $this->ass_arr(pg_query($this->con, "SELECT subscript FROM image_subscripts WHERE m_id = '$id'"));
         if (count($results)) {
             return $results[0]["subscript"];
@@ -100,9 +118,9 @@ class db
 
     }
 
-    private function stuffEmpty($str) {
-        if (is_null($str) || strlen($str) == 0)
-        {
+    private function stuffEmpty($str)
+    {
+        if (is_null($str) || strlen($str) == 0) {
             return "-";
         } else {
             return str_replace("amp;", "", $str);
@@ -110,13 +128,53 @@ class db
         }
     }
 
-    private function createLines($str, $download) {
+    private function createLines($str, $download)
+    {
         if ($download) {
             return implode("\n", $this->trexplode(";", $str));
         } else {
             return $this->trexplode(";", $str);
         }
+    }
 
+    private function getInterpolations($id)
+    {
+        $result = pg_query($this->con, "SELECT interpolation, folia, description FROM interpolations WHERE m_id='$id' AND interpolation <> ''");
+        if (pg_num_rows($result) > 0) {
+            return $this->ass_arr($result);
+        } else {
+            return array();
+        }
+    }
+
+    private function getDiagrams($id)
+    {
+        $result = pg_query($this->con, "SELECT diagram_type, folia, description FROM diagrams WHERE m_id='$id' AND diagram_type <> ''");
+        if (pg_num_rows($result) > 0) {
+            return $this->ass_arr($result);
+        } else {
+            return array();
+        }
+    }
+
+    private function getAnnotations($id)
+    {
+        $result = pg_query($this->con, "SELECT number_of_annotations, books, language, remarks FROM annotations WHERE m_id = '$id' AND number_of_annotations <> ''");
+        if (pg_num_rows($result) > 0) {
+            return $this->ass_arr($result);
+        } else {
+            return array();
+        }
+    }
+
+    private function getEasterTables($id)
+    {
+        $result = pg_query($this->con, "SELECT easter_table_type, folia, remarks FROM easter_table WHERE m_id='$id' AND easter_table_type <> ''");
+        if (pg_num_rows($result) > 0) {
+            return $this->ass_arr($result);
+        } else {
+            return array();
+        }
     }
 
     private function getScript($id)
@@ -181,49 +239,51 @@ class db
         return implode(", ", $retArray);
     }
 
-    private function createRelatedManuscriptsList($item, $download)
+    private function getShelfmark($id)
+    {
+        $result = $this->ass_arr(pg_query($this->con, "SELECT shelfmark FROM manuscripts WHERE id = '$id'"));
+        if (count($result)) {
+            return $result[0]["shelfmark"];
+        } else {
+            return "";
+        }
+    }
+
+    private function createRelatedManuscriptsList($id, $download)
     {
         $retArray = array();
-        if (is_null($item["reason_for_relationship"]) || strlen($item["reason_for_relationship"]) == 0) {
-            if ($download) {
-                return "-";
+        $current_reason = "";
+        $buffer = array();
+        $results = $this->ass_arr(pg_query($this->con, "SELECT m_id, reason, rel_mss_id, rel_mss_other FROM relationships WHERE m_id = '$id' ORDER BY reason"));
+        if (count($results)) {
+            foreach ($results as $item) {
+                if ($item["reason"] != $current_reason) {
+                    $current_reason = $item["reason"];
+                    if (count($buffer)) {
+                        $retArray[] = $buffer;
+                    }
+                    $buffer = array("reason" => $item["reason"], "intern" => array(), "extern" => array());
+                }
+                if (!is_null($item["rel_mss_id"]) && strlen($item["rel_mss_id"]) != 0) {
+                    $buffer["intern"][] = array("id" => $item["rel_mss_id"], "shelfmark" => $this->getShelfmark($item["rel_mss_id"]));
+                }
+                if (!is_null($item["rel_mss_other"]) && strlen($item["rel_mss_other"]) != 0) {
+                    $buffer["extern"][] = array("name" => $item["rel_mss_other"]);
+                }
             }
-        }
-        $reasons = $this->trexplode("+", $item["reason_for_relationship"]);
-        $intern = $this->trexplode("+", $item["related_mss_in_the_database"]);
-        $extern = $this->trexplode("+", $item["related_mss_outside_of_the_database"]);
-        if ((!is_null($item["reason_for_relationship"]) || strlen($item["reason_for_relationship"]) != 0)) {
-            for ($i = 0; $i < count($reasons); $i++) {
-                $tmpArray = array();
-                $tmpArray["reason"] = $reasons[$i];
-                if (isset($intern[$i])) {
-                    $tmpArray["intern"] = $this->getInternRelations($intern[$i]);
-                } else {
-                    $tmpArray["intern"] = array();
-                }
-                if (isset($extern[$i])) {
-                    $tmpArray["extern"] = $this->trexplode(";", $extern[$i]);
-                } else {
-                    $tmpArray["extern"] = array();
-                }
-                $retArray[] = $tmpArray;
+            if (count($buffer)) {
+                $retArray[] = $buffer;
             }
         } else {
-            $tmpArray = array();
-            $tmpArray["reason"] = "-";
-            if (isset($intern[0])) {
-                $tmpArray["intern"] = $this->getInternRelations($intern[0]);
+            if ($download) {
+                return "";
             } else {
-                $tmpArray["intern"] = array();
+                return $retArray;
             }
-            if (isset($extern[0])) {
-                $tmpArray["extern"] = $this->trexplode(";", $extern[0]);
-            } else {
-                $tmpArray["extern"] = array();
-            }
-            $retArray[] = $tmpArray;
         }
-        //error_log(print_r($retArray, true));
+
+
+//error_log(print_r($retArray, true));
         if ($download) {
             return $this->flattenRelationArray($retArray);
         } else {
@@ -232,7 +292,9 @@ class db
 
     }
 
-    private function flattenRelationArray($rels) {
+    private
+    function flattenRelationArray($rels)
+    {
         $retArray = array();
 
         foreach ($rels as $rel) {
@@ -242,10 +304,22 @@ class db
             }
             $retArray[] = implode("\n", $rel["extern"]);
         }
-        return implode("\n", $retArray);
+        return implode(", ", $retArray);
     }
 
-    private function getInternRelations($str)
+    private
+    function flattenProvenanceArray($prov)
+    {
+        $retArray = array();
+
+        foreach ($prov as $item) {
+            $retArray[] = $item["provenance"];
+        }
+        return implode(", ", $retArray);
+    }
+
+    private
+    function getInternRelations($str)
     {
         $tmpArray = $this->trexplode(";", $str);
         if (count($tmpArray) > 0) {
@@ -261,7 +335,8 @@ class db
         }
     }
 
-    private function trexplode($delimmiter, $str)
+    private
+    function trexplode($delimmiter, $str)
     {
         $retArray = array();
         $tmpArray = explode($delimmiter, $str);
@@ -271,66 +346,54 @@ class db
         return $retArray;
     }
 
-    private function createBibliography($item, $download)
+    private
+    function createBibliography($item, $download)
     {
         $tmp = str_replace("</i>", "", $item["bibliography"]);
         $tmp = str_replace("<i>", "", $tmp);
         $books = $this->trexplode(";", $tmp);
         if ($download) {
-           return implode("\n", $books);
+            return implode("\n", $books);
         } else {
             return $books;
         }
     }
 
-    private function createDigitalVersions($item, $download)
+    private
+    function createDigitalVersions($id, $download)
     {
         $retArray = array();
-        if (!is_null($item["url_images_1"]) && strlen($item["url_images_1"]) > 0) {
-            if ($download) {
-                $retArray[] = $item["url_images_1"];
-            } else {
-                $retArray[] = array( "item" => $item["url_images_1"]);
-            }
-        }
-        if (!is_null($item["url_images_2"]) && strlen($item["url_images_2"]) > 0) {
-            if ($download) {
-                $retArray[] = $item["url_images_2"];
-            } else {
-                $retArray[] = array( "item" => $item["url_images_2"]);
-            }
-        }
-        if (!is_null($item["url_images_3"]) && strlen($item["url_images_3"]) > 0) {
-            if ($download) {
-                $retArray[] = $item["url_images_3"];
-            } else {
-                $retArray[] = array( "item" => $item["url_images_3"]);
-            }
-        }
-        if (!is_null($item["url_images_4"]) && strlen($item["url_images_4"]) > 0) {
-            if ($download) {
-                $retArray[] = $item["url_images_4"];
-            } else {
-                $retArray[] = array( "item" => $item["url_images_4"]);
+        $results = $this->ass_arr(pg_query($this->con, "SELECT other_links, label_other_links FROM url WHERE id='$id'"));
+        if (count($results)) {
+            foreach ($results as $item) {
+                $retArray[] = array("other_links" => $item["other_links"], "label" => $item["label_other_links"]);
             }
         }
 
         if ($download) {
-            return implode("\n",$retArray);
+            return  $this->flattenDigitalVersions($retArray);
         } else {
             return $retArray;
         }
-
     }
 
-    private function getContent($id, $download)
+    private function flattenDigitalVersions($lst) {
+        $retArray = array();
+        foreach ($lst as $item) {
+            $retArray[] = implode(", ", $item);
+        }
+        return implode("\n", $retArray);
+    }
+
+    private
+    function getContent($id, $download)
     {
         $results = pg_query($this->con, "SELECT material_type, books_included, string_agg( details, ';') details , string_agg( locations, ';') locations from manuscripts_details_locations WHERE m_id = '$id' GROUP BY material_type, books_included");
         if ($download) {
             return $this->contentDownload($this->ass_arr($results));
         } else {
             $retArray = [];
-            foreach ( $this->ass_arr($results) as $item ) {
+            foreach ($this->ass_arr($results) as $item) {
                 $buffer = [];
                 $buffer["material_type"] = $item["material_type"];
                 $buffer["books_included"] = $item["books_included"];
@@ -343,12 +406,13 @@ class db
         }
     }
 
-    private function merge($details, $locations) {
+    private
+    function merge($details, $locations)
+    {
         $count = count($details);
         $retArray = array();
 
-        for ($i = 0; $i < $count; $i++)
-        {
+        for ($i = 0; $i < $count; $i++) {
             $buffer = array();
             $buffer["details"] = $details[$i];
             $buffer["locations"] = $locations[$i];
@@ -357,7 +421,9 @@ class db
         return $retArray;
     }
 
-    private function contentDownload($arr) {
+    private
+    function contentDownload($arr)
+    {
         $retArr = array();
         foreach ($arr as $element) {
             $retArr[] = implode(", ", array_values($element));
@@ -365,7 +431,8 @@ class db
         return implode("\n", $retArr);
     }
 
-    private function getContentType($id)
+    private
+    function getContentType($id)
     {
         $results = $this->ass_arr(pg_query($this->con, "select ct.content_type from manuscripts_content_types mt, content_types ct WHERE mt.m_id = '$id' AND mt.type_id = ct.type_id"));
         if (count($results)) {
@@ -375,7 +442,8 @@ class db
         }
     }
 
-    private function get_place($id)
+    private
+    function get_place($id)
     {
         $results = pg_query($this->con, "SELECT ap.place_absolute  FROM absolute_places ap, manuscripts_absolute_places m WHERE m.m_id = '$id' AND m.place_id = ap.place_id");
         $items = $this->ass_arr($results);
@@ -386,7 +454,8 @@ class db
         }
     }
 
-    private function get_certainty($id)
+    private
+    function get_certainty($id)
     {
         $results = pg_query($this->con, "SELECT certainty  FROM manuscripts_absolute_places WHERE m_id = '$id'");
         $items = $this->ass_arr($results);
@@ -411,7 +480,8 @@ class db
         return json_decode($response, true);
     }
 
-    private function ass_arr($results)
+    private
+    function ass_arr($results)
     {
         $retArray = array();
         while ($row = pg_fetch_assoc($results)) {

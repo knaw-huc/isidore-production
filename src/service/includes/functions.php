@@ -44,7 +44,7 @@ function elastic($json_struc)
     return json_decode($response, true);
 }
 
-function download($codedStruc)
+function download($format, $codedStruc)
 {
     global $db;
 
@@ -56,15 +56,77 @@ function download($codedStruc)
         $ids[] = "'" . $manuscript["_source"]["id"] . "'";
     }
     $downloadData = $db->getDownloadDetails(implode(", ", $ids));
+    switch($format) {
+        case "csv":
+            download_csv($downloadData);
+            break;
+        case "excel":
+            download_excel($downloadData);
+            break;
+        case "xml":
+            download_xml($downloadData);
+            break;
+    }
+
+
+}
+
+function download_csv($downloadData) {
     $row = $downloadData[0];
     header("Content-Disposition: attachment; filename=isidore_results.csv");
     header("Content-Type: text/csv");
     $fp = fopen('php://output', 'w');
     fputcsv($fp, array_keys($row), "\t");
     foreach ($downloadData as $data) {
-       fputcsv($fp, $data, "\t", '"');
+        fputcsv($fp, $data, "\t", '"');
     }
 }
+
+function download_xml($downloadData) {
+    $xml = array_to_xml($downloadData);
+    header("Content-Disposition: attachment; filename=isidore_results.xml");
+    header('Content-Type: text/xml');
+    echo $xml;
+}
+
+function array_to_xml($arr) {
+    $retXML = "";
+    foreach ($arr as $row) {
+        $retXML .= get_item($row);
+    }
+    return spit_element("root", $retXML);
+}
+
+function get_item($row) {
+    $item = "";
+    foreach ($row as $key => $value) {
+        $item .= spit_element($key, $value);
+    }
+    return spit_element("item", $item);
+}
+
+function spit_element($key, $value) {
+    return "<$key>$value</$key>";
+}
+
+function download_excel($downloadData) {
+    $row = $downloadData[0];
+    $fileName = "isidore_results.xls";
+    $excelData = implode("\t", array_keys($row)) . "\n";
+    $i = 0;
+    while ($i < count($downloadData)) {
+        $rowData = $downloadData[$i];
+        array_walk($rowData, 'filterData');
+        $excelData .= implode("\t", array_values($rowData)) . "\n";
+        $i++;
+    }
+    header("Content-Disposition: attachment; filename=\"$fileName\"");
+    header('Content-type: text/csv; charset=UTF-8');
+    //echo "\xEF\xBB\xBF"; // UTF-8 BOM
+    //mb_convert_encoding($excelData, 'UTF-16LE', 'UTF-8');
+    echo $excelData;
+}
+
 
 function search($codedStruc)
 {
@@ -370,6 +432,13 @@ function get_initial_facets($field, $searchStruc, $type)
     }
     $result = elastic($json_struc);
     echo send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
+}
+
+// Export to Excel function
+function filterData(&$str){
+    $str = preg_replace("/\t/", "\\t", $str);
+    $str = preg_replace("/\r?\n/", "\\n", $str);
+    if(strstr($str, '"')) $str = '"' . str_replace('"', '""', $str) . '"';
 }
 
 
