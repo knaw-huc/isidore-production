@@ -85,7 +85,7 @@ class db
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
         $manuscript["bibliography"] = $this->createBibliography($item, $download);
         $manuscript["digitized_at"] = $this->createDigitalVersions($id, $download);
-        $manuscript["url_other"] = $this->stuffEmpty($item["url_other"]);
+        $manuscript["url_other"] = $this->createOtherInfo($id, $download);
         $manuscript["page_number"] = $this->getPageNumber($id);
         $manuscript["created_by"] = $item["created_by"];
         $manuscript["created_on"] = $item["created_on"];
@@ -359,11 +359,90 @@ class db
         }
     }
 
+    private function createOtherInfo($id, $download) {
+        $retArray = array();
+        $results = $this->ass_arr(pg_query($this->con, "SELECT * FROM url WHERE id = '$id'"));
+
+        if (count($results)) {
+            foreach ($results as $item) {
+                $retArray = $this->getInfoFromField('fama', $item, $retArray);
+                $retArray = $this->getInfoFromField('jordanus', $item, $retArray);
+                $retArray = $this->getInfoFromField('mirabileweb', $item, $retArray);
+                $retArray = $this->getInfoFromField('trismegistos', $item, $retArray);
+                $retArray = $this->getInfoFromField('manuscripta_medica', $item, $retArray);
+                $retArray = $this->getInfoFromField('bstk_online', $item, $retArray);
+                $retArray = $this->getInfoFromField('dhbm', $item, $retArray);
+                $retArray = $this->getInfoFromField('handscriftencensus', $item, $retArray);
+            }
+        }
+        if (!is_null($item["other_links"]) && !is_null($item["label_other_links"])) {
+            $retArray[] = array("url" => $item["other_links"], "label" => "(" . $item["label_other_links"] . ")");
+        }
+
+        if ($download) {
+            return $this->flattenOtherInfo($retArray);
+        } else {
+            return $retArray;
+        }
+    }
+
+    private function flattenOtherInfo($array) {
+        $retArray = array();
+
+        foreach ($array as $item) {
+            $retArray = implode(" ", $item);
+        }
+        return implode("\n", $retArray);
+    }
+
+    private function getInfoFromField($field, $item, $array) {
+        $retArray = $array;
+        if ($item[$field] != "" && !is_null($item[$field])) {
+            $retArray[] = array("url" => $item[$field], "label" => $this->getInfoLabel($field));
+        }
+
+        return $retArray;
+    }
+
+    private function getInfoLabel($field) {
+        $retStr = "";
+
+        switch ($field) {
+            case "fama":
+                $retStr = "(FAMA)";
+                break;
+            case "jordanus":
+                $retStr = "(Jordanus)";
+                break;
+            case "mirabileweb":
+                $retStr = "(Mirabileweb)";
+                break;
+            case "trismegistos":
+                $retStr = "(Trismegistos)";
+                break;
+            case "manuscripta_medica":
+                $retStr = "(Manuscripta medica)";
+                break;
+            case "bstk_online":
+                $retStr = "(BSTK Online)";
+                break;
+            case "dhbm":
+                $retStr = "(DHBM)";
+                break;
+            case "handscriftencensus":
+                $retStr = "(Handscriftencensus)";
+                break;
+            default:
+                $retStr = "Unknown";
+        }
+        return $retStr;
+    }
+
     private
     function createDigitalVersions($id, $download)
     {
         $retArray = array();
-        $results = $this->ass_arr(pg_query($this->con, "SELECT other_links, label_other_links FROM url WHERE id='$id'"));
+        $results = $this->ass_arr(pg_query($this->con, "SELECT url_images as other_links, label as label_other_links FROM url WHERE id='$id'"));
         if (count($results)) {
             foreach ($results as $item) {
                 $retArray[] = array("other_links" => $item["other_links"], "label" => $item["label_other_links"]);
