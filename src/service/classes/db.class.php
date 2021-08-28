@@ -61,11 +61,11 @@ class db
         $manuscript["bischoff"] = $item["bischoff"];
         $manuscript["anspach"] = $item["anspach"];
         $manuscript["cla"] = $item["cla"];
-        $manuscript["bischoff_cla_date"] = $item["bischoff_cla_date"];
+        $manuscript["bischoff_cla_date"] = $this->getDateOfOrigin($id);
         $manuscript["source_dating"] = $this->get_source($id);
         $manuscript["place_absolute"] = $this->get_place($id);
         $manuscript["certainty"] = $this->get_certainty($id);
-        $manuscript["physical_state_scaled"] = $this->get_physical_state($id);
+        $manuscript["physical_state_scaled"] = $item["physical_state_scaled"];
         $manuscript["physical_state"] = $item["physical_state_detail"];
         $manuscript["provenances"] = $this->get_provenance($id, $download);
         $manuscript["designed_as"] = $this->get_designed_as($id);
@@ -86,6 +86,7 @@ class db
         $manuscript["bibliography"] = $this->createBibliography($item, $download);
         $manuscript["digitized_at"] = $this->createDigitalVersions($id, $download);
         $manuscript["url_other"] = $this->createOtherInfo($id, $download);
+        $manuscript["iiif"] = $item["iiif"];
         $manuscript["page_number"] = $this->getPageNumber($id);
         $manuscript["created_by"] = $item["created_by"];
         $manuscript["created_on"] = $item["created_on"];
@@ -115,7 +116,15 @@ class db
         } else {
             return "";
         }
+    }
 
+    private function getDateOfOrigin($id) {
+        $results = $this->ass_arr(pg_query($this->con, "SELECT date FROM manuscripts_scaled_dates msc, scaled_dates sc WHERE msc.m_id = '$id' AND msc.date_id=sc.date_id"));
+        if (count($results)) {
+            return $results[0]["date"];
+        } else {
+            return "-";
+        }
     }
 
     private function stuffEmpty($str)
@@ -159,7 +168,8 @@ class db
 
     private function getAnnotations($id)
     {
-        $result = pg_query($this->con, "SELECT number_of_annotations, books, language, remarks FROM annotations WHERE m_id = '$id' AND number_of_annotations <> ''");
+        $result = pg_query($this->con, "SELECT number_of_annotations, books, language, remarks, REPLACE(url, 'http://peterboot.nl/isidore/#glossms-', '') url FROM annotations WHERE m_id = '$id' AND number_of_annotations <> ''");
+
         if (pg_num_rows($result) > 0) {
             return $this->ass_arr($result);
         } else {
