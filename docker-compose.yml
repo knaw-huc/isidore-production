@@ -25,7 +25,7 @@ services:
     container_name: isidore_postgres
     restart: always
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - /data/docker/volumes/isidore-postgres/_data:/var/lib/postgresql/data
       - /home/robz:/home
@@ -50,6 +50,6 @@ services:
     volumes:
       - /home/robz:/home
     ports:
-      - 8086:80
+      - 8087:80
     networks:
       - isidore_network
