@@ -371,7 +371,7 @@ class db
 
     private function createOtherInfo($id, $download) {
         $retArray = array();
-        $results = $this->ass_arr(pg_query($this->con, "SELECT * FROM url WHERE id = '$id'"));
+        $results = $this->ass_arr(pg_query($this->con, "SELECT * FROM url WHERE m_id = '$id'"));
 
         if (count($results)) {
             foreach ($results as $item) {
@@ -452,7 +452,7 @@ class db
     function createDigitalVersions($id, $download)
     {
         $retArray = array();
-        $results = $this->ass_arr(pg_query($this->con, "SELECT url_images as other_links, label as label_other_links FROM url WHERE id='$id'"));
+        $results = $this->ass_arr(pg_query($this->con, "SELECT url_images as other_links, label as label_other_links FROM url WHERE m_id='$id'"));
         if (count($results)) {
             foreach ($results as $item) {
                 $retArray[] = array("other_links" => $item["other_links"], "label" => $item["label_other_links"]);

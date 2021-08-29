@@ -43,7 +43,7 @@ services:
     container_name: isidore_application
     restart: always
     environment:
-      - VIRTUAL_HOST=isidore.sd.di.huc.knaw.nl
+      - VIRTUAL_HOST=db.innovatingknowledge.nl
     links:
       - elastic
       - db
