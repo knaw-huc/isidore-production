@@ -77,10 +77,10 @@ class db
         $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
         $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
         $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($id, $download);
-        $manuscript["interpolations"] = $this->getInterpolations($id);
-        $manuscript["easter_tables"] = $this->getEasterTables($id);
-        $manuscript["annotations"] = $this->getAnnotations($id);
-        $manuscript["diagrams"] = $this->getDiagrams($id);
+        $manuscript["interpolations"] = $this->getInterpolations($id, $download);
+        $manuscript["easter_tables"] = $this->getEasterTables($id, $download);
+        $manuscript["annotations"] = $this->getAnnotations($id, $download);
+        $manuscript["diagrams"] = $this->getDiagrams($id, $download);
         $manuscript["innovations"] = $this->stuffEmpty($item["innovations"]);
         $manuscript["additional_observations"] = $this->stuffEmpty($item["additional_observations"]);
         $manuscript["bibliography"] = $this->createBibliography($item, $download);
@@ -146,45 +146,90 @@ class db
         }
     }
 
-    private function getInterpolations($id)
+    private function getInterpolations($id, $download)
     {
         $result = pg_query($this->con, "SELECT interpolation, folia, description FROM interpolations WHERE m_id='$id' AND interpolation <> ''");
         if (pg_num_rows($result) > 0) {
-            return $this->ass_arr($result);
+            if ($download) {
+                return $this->flattenList($this->ass_arr($result));
+            } else {
+                return $this->ass_arr($result);
+            }
         } else {
-            return array();
+            if ($download) {
+                return "";
+            } else {
+                return array();
+            }
         }
     }
 
-    private function getDiagrams($id)
+    private function getDiagrams($id, $download)
     {
         $result = pg_query($this->con, "SELECT diagram_type, folia, description FROM diagrams WHERE m_id='$id' AND diagram_type <> ''");
         if (pg_num_rows($result) > 0) {
-            return $this->ass_arr($result);
+            if ($download) {
+                return $this->flattenList($this->ass_arr($result));
+            } else {
+                return $this->ass_arr($result);
+            }
         } else {
-            return array();
+            if ($download) {
+                return "";
+            } else {
+                return array();
+            }
         }
     }
 
-    private function getAnnotations($id)
+    private function getAnnotations($id, $download)
     {
         $result = pg_query($this->con, "SELECT number_of_annotations, books, language, remarks, REPLACE(url, 'http://peterboot.nl/isidore/#glossms-', '') url FROM annotations WHERE m_id = '$id' AND number_of_annotations <> ''");
 
         if (pg_num_rows($result) > 0) {
-            return $this->ass_arr($result);
+            if ($download) {
+                return $this->flattenList($this->ass_arr($result));
+            } else {
+                return $this->ass_arr($result);
+            }
         } else {
-            return array();
+            if ($download) {
+                return "";
+            } else {
+                return array();
+            }
         }
     }
 
-    private function getEasterTables($id)
+    private function getEasterTables($id, $download)
     {
         $result = pg_query($this->con, "SELECT easter_table_type, folia, remarks FROM easter_table WHERE m_id='$id' AND easter_table_type <> ''");
         if (pg_num_rows($result) > 0) {
-            return $this->ass_arr($result);
+            if ($download) {
+                return $this->flattenList($this->ass_arr($result));
+            } else {
+                return $this->ass_arr($result);
+            }
         } else {
-            return array();
+            if ($download) {
+                return "";
+            } else {
+                return array();
+            }
         }
+    }
+
+    private function flattenList($lst) {
+        $retArray = array();
+        foreach ($lst as $item) {
+            $retArray[] = implode(', ', $item);
+        }
+        if (count($retArray)) {
+            return implode("\n", $retArray);
+        } else {
+            return "";
+        }
+
     }
 
     private function getScript($id)

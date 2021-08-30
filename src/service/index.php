@@ -4,6 +4,8 @@ require(dirname(__FILE__) . '/config/db_config.php');
 require(dirname(__FILE__) . '/classes/db.class.php');
 require(dirname(__FILE__) . '/includes/functions.php');
 
+error_reporting(0);
+
 $URI = $_SERVER["REQUEST_URI"];
 
 
@@ -26,8 +28,8 @@ switch ($page) {
         }
         break;
     case "download":
-        if (isset($segments[3])) {
-            download($segments[3]);
+        if (isset($segments[3]) && isset($segments[4])) {
+            download($segments[3], $segments[4]);
         } else {
             throw_error();
         }
