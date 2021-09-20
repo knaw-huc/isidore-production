@@ -32,7 +32,7 @@ function detail($id)
 
 function elastic($json_struc)
 {
-    error_log($json_struc);
+    //error_log($json_struc);
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
     $ch = curl_init(ELASTIC_HOST);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $options);
@@ -149,7 +149,7 @@ function parse_codedStruc($queryArray, $download = false)
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
-        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"],\"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
+        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.label\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"],\"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     } else {
         $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder, $download);
     }
@@ -202,7 +202,7 @@ function queryTemplate($terms, $from, $page_length, $sortOrder, $download)
     if ($download) {
         return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 500, \"from\": 0, \"_source\": [\"id\"]}";
     } else {
-        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
+        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.label\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     }
 
 }
@@ -391,7 +391,7 @@ function get_nested_facets($field, $searchStruc, $type, $filter = "")
     } else {
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
     }
-    //error_log($json_struc);
+    
     $result = elastic($json_struc);
     send_json(array("buckets" => sortResult($result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"])));
 }
@@ -431,7 +431,7 @@ function get_initial_facets($field, $searchStruc, $type)
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount, \"order\": {\"_key\": \"asc\"}}, \"aggs\": {\"byHash\": {\"terms\": {\"field\": \"hash\"}}}}}}";
     }
     $result = elastic($json_struc);
-    error_log($json_struc);
+    //error_log($json_struc);
     echo send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
 }
 
