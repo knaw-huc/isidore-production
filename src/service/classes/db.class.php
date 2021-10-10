@@ -67,7 +67,8 @@ class db
         $manuscript["certainty"] = $this->get_certainty($id);
         $manuscript["physical_state_scaled"] = $item["physical_state_scaled"];
         $manuscript["physical_state"] = $item["physical_state_detail"];
-        $manuscript["provenances"] = $this->get_provenance($id, $download);
+        //$manuscript["provenances"] = $this->get_provenance($id, $download);
+        $manuscript["provenances"] = $item["provenance_absolute"];
         $manuscript["designed_as"] = $this->get_designed_as($id);
         $manuscript["no_of_folia"] = $item["no_of_folia"];
         $manuscript["layout"] = $this->createLayout($item);
@@ -76,6 +77,7 @@ class db
         $manuscript["type"] = $this->getContentType($id);
         $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
         $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
+        $manuscript["url_larger_unit"] = $item["url_collection_larger_unit"];
         $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($id, $download);
         $manuscript["interpolations"] = $this->getInterpolations($id, $download);
         $manuscript["easter_tables"] = $this->getEasterTables($id, $download);
@@ -148,7 +150,7 @@ class db
 
     private function getInterpolations($id, $download)
     {
-        $result = pg_query($this->con, "SELECT interpolation, folia, description FROM interpolations WHERE m_id='$id' AND interpolation <> ''");
+        $result = pg_query($this->con, "SELECT interpolation, folia, description, url FROM interpolations WHERE m_id='$id' AND interpolation <> ''");
         if (pg_num_rows($result) > 0) {
             if ($download) {
                 return $this->flattenList($this->ass_arr($result));
@@ -166,7 +168,7 @@ class db
 
     private function getDiagrams($id, $download)
     {
-        $result = pg_query($this->con, "SELECT diagram_type, folia, description FROM diagrams WHERE m_id='$id' AND diagram_type <> ''");
+        $result = pg_query($this->con, "SELECT diagram_type, folia, description, url FROM diagrams WHERE m_id='$id' AND diagram_type <> ''");
         if (pg_num_rows($result) > 0) {
             if ($download) {
                 return $this->flattenList($this->ass_arr($result));
