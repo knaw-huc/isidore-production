@@ -32,7 +32,7 @@ function detail($id)
 
 function elastic($json_struc)
 {
-    error_log($json_struc);
+    //error_log($json_struc);
     $options = array('Content-type: application/json', 'Content-Length: ' . strlen($json_struc));
     $ch = curl_init(ELASTIC_HOST);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $options);
@@ -44,7 +44,7 @@ function elastic($json_struc)
     return json_decode($response, true);
 }
 
-function download($codedStruc)
+function download($format, $codedStruc)
 {
     global $db;
 
@@ -56,15 +56,77 @@ function download($codedStruc)
         $ids[] = "'" . $manuscript["_source"]["id"] . "'";
     }
     $downloadData = $db->getDownloadDetails(implode(", ", $ids));
+    switch($format) {
+        case "csv":
+            download_csv($downloadData);
+            break;
+        case "excel":
+            download_excel($downloadData);
+            break;
+        case "xml":
+            download_xml($downloadData);
+            break;
+    }
+
+
+}
+
+function download_csv($downloadData) {
     $row = $downloadData[0];
     header("Content-Disposition: attachment; filename=isidore_results.csv");
     header("Content-Type: text/csv");
     $fp = fopen('php://output', 'w');
     fputcsv($fp, array_keys($row), "\t");
     foreach ($downloadData as $data) {
-       fputcsv($fp, $data, "\t", '"');
+        fputcsv($fp, $data, "\t", '"');
     }
 }
+
+function download_xml($downloadData) {
+    $xml = array_to_xml($downloadData);
+    header("Content-Disposition: attachment; filename=isidore_results.xml");
+    header('Content-Type: text/xml');
+    echo $xml;
+}
+
+function array_to_xml($arr) {
+    $retXML = "";
+    foreach ($arr as $row) {
+        $retXML .= get_item($row);
+    }
+    return spit_element("root", $retXML);
+}
+
+function get_item($row) {
+    $item = "";
+    foreach ($row as $key => $value) {
+        $item .= spit_element($key, $value);
+    }
+    return spit_element("item", $item);
+}
+
+function spit_element($key, $value) {
+    return "<$key>$value</$key>";
+}
+
+function download_excel($downloadData) {
+    $row = $downloadData[0];
+    $fileName = "isidore_results.xls";
+    $excelData = implode("\t", array_keys($row)) . "\n";
+    $i = 0;
+    while ($i < count($downloadData)) {
+        $rowData = $downloadData[$i];
+        array_walk($rowData, 'filterData');
+        $excelData .= implode("\t", array_values($rowData)) . "\n";
+        $i++;
+    }
+    header("Content-Disposition: attachment; filename=\"$fileName\"");
+    header('Content-type: text/csv; charset=UTF-8');
+    //echo "\xEF\xBB\xBF"; // UTF-8 BOM
+    //mb_convert_encoding($excelData, 'UTF-16LE', 'UTF-8');
+    echo $excelData;
+}
+
 
 function search($codedStruc)
 {
@@ -87,10 +149,11 @@ function parse_codedStruc($queryArray, $download = false)
     $from = ($queryArray["page"] - 1) * $queryArray["page_length"];
     $sortOrder = $queryArray["sortorder"];
     if ($queryArray["searchvalues"] == "none") {
-        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"],\"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
+        $json_struc = "{ \"query\": {\"match_all\": {}}, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.label\", \"accepted_date\",\"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"],\"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     } else {
         $json_struc = buildQuery($queryArray, $from, $page_length, $sortOrder, $download);
     }
+
     return $json_struc;
 }
 
@@ -140,7 +203,7 @@ function queryTemplate($terms, $from, $page_length, $sortOrder, $download)
     if ($download) {
         return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": 500, \"from\": 0, \"_source\": [\"id\"]}";
     } else {
-        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
+        return "{ \"query\": { \"bool\": { \"must\": [ $terms ] } }, \"size\": $page_length, \"from\": $from, \"_source\": [\"id\", \"shelfmark\", \"bischoff\", \"cla\",\"scaled_dates.label\", \"accepted_date\", \"physical_state\",  \"absolute_places.place_absolute\", \"absolute_places.latitude\", \"absolute_places.longitude\", \"library.place_name\", \"library.latitude\", \"library.longitude\", \"certainty\", \"no_of_folia\", \"page_height_min\", \"page_width_min\", \"designed_as\" ,\"material_type\", \"books_latin\", \"additional_content_scaled\", \"image\"], \"sort\": [{ \"shelfmark.raw\": {\"order\":\"asc\"}}]}";
     }
 
 }
@@ -329,7 +392,7 @@ function get_nested_facets($field, $searchStruc, $type, $filter = "")
     } else {
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
     }
-    //error_log($json_struc);
+    
     $result = elastic($json_struc);
     send_json(array("buckets" => sortResult($result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"])));
 }
@@ -369,7 +432,15 @@ function get_initial_facets($field, $searchStruc, $type)
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\" : {\"names\" : {\"terms\" : { \"field\" : \"$field.raw\",  \"size\" : $amount, \"order\": {\"_key\": \"asc\"}}, \"aggs\": {\"byHash\": {\"terms\": {\"field\": \"hash\"}}}}}}";
     }
     $result = elastic($json_struc);
+    //error_log($json_struc);
     echo send_json(array("buckets" => $result["aggregations"]["names"]["buckets"]));
+}
+
+// Export to Excel function
+function filterData(&$str){
+    $str = preg_replace("/\t/", "\\t", $str);
+    $str = preg_replace("/\r?\n/", "\\n", $str);
+    if(strstr($str, '"')) $str = '"' . str_replace('"', '""', $str) . '"';
 }
 
 
