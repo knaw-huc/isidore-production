@@ -12,6 +12,7 @@ services:
     restart: always
     environment:
       - discovery.type=single-node
+      - ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true
     expose:
       - 9200
     networks:
