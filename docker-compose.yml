@@ -50,7 +50,5 @@ services:
       - db
     volumes:
       - /home/robz:/home
-    ports:
-      - 8087:80
     networks:
       - isidore_network
