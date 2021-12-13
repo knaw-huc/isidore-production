@@ -392,7 +392,7 @@ function get_nested_facets($field, $searchStruc, $type, $filter = "")
     } else {
         $json_struc = "{\"query\": { \"bool\": { \"must\": [ $subQuery ] } }, \"size\": 0, \"aggs\": {\"nested_terms\": {\"nested\": {\"path\": \"$path\"},\"aggs\": {\"filter\": {\"filter\": {\"regexp\": {\"$field\": \"$filter.*\"}},\"aggs\": {\"names\": {\"terms\": {\"field\": \"$field.raw\",\"size\": $amount}}}}}}}}";
     }
-    
+
     $result = elastic($json_struc);
     send_json(array("buckets" => sortResult($result["aggregations"]["nested_terms"]["filter"]["names"]["buckets"])));
 }
