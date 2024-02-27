@@ -75,7 +75,8 @@ class db
         $manuscript["script"] = $this->getScript($id);
         $manuscript["content"] = $this->getContent($id, $download);
         $manuscript["type"] = $this->getContentType($id);
-        $manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
+        //$manuscript["additional_content"] = $this->createLines($item["additional_content_scaled"], $download);
+        $manuscript["additional_content"] = $this->getViaf($id, $download);
         $manuscript["larger_unit"] = $this->createLines($item["collection_larger_unit"], $download);
         $manuscript["url_larger_unit"] = $item["url_collection_larger_unit"];
         $manuscript["related_manuscripts"] = $this->createRelatedManuscriptsList($id, $download);
@@ -148,6 +149,23 @@ class db
         }
     }
 
+    private function getViaf($id, $download) {
+        $result = pg_query($this->con, "SELECT additional_content_scaled, viaf_url, biblissima_author_url, wikidata_author_url FROM manuscripts_viaf WHERE id = '$id'");
+        if (pg_num_rows($result) > 0) {
+            if ($download) {
+                return $this->flattenList($this->ass_arr($result));
+            } else {
+                return $this->ass_arr($result);
+            }
+        } else {
+            if ($download) {
+                return "";
+            } else {
+                return array();
+            }
+        }
+    }
+
     private function getInterpolations($id, $download)
     {
         $result = pg_query($this->con, "SELECT interpolation, folia, description, url FROM interpolations WHERE m_id='$id' AND interpolation <> ''");
@@ -205,7 +223,7 @@ class db
 
     private function getEasterTables($id, $download)
     {
-        $result = pg_query($this->con, "SELECT easter_table_type, folia, remarks FROM easter_table WHERE m_id='$id' AND easter_table_type <> ''");
+        $result = pg_query($this->con, "SELECT easter_table_type, folia, remarks FROM easter_table WHERE m_id='$id'");
         if (pg_num_rows($result) > 0) {
             if ($download) {
                 return $this->flattenList($this->ass_arr($result));
